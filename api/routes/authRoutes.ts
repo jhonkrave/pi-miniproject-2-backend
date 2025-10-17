@@ -3,10 +3,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import UserDAO from '../dao/UserDAO';
-import { sendPasswordResetEmail } from '../utils/mailer';
+import { sendPasswordResetEmail, isSmtpConfigured } from '../utils/mailer';
 import authMiddleware from '../middleware/authMiddleware';
 
 const router = Router();
+const isDev = process.env.NODE_ENV !== 'production';
 
 const signToken = (userId: string): string => {
   return jwt.sign({ userId }, process.env.JWT_SECRET as string, { expiresIn: '2h' });
@@ -136,22 +137,35 @@ router.post('/logout', (req, res) => {
  */
 router.post('/password/forgot', async (req, res) => {
   try {
-    const { email } = req.body as any;
+    const rawEmail = (req.body as any)?.email;
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    if (isDev) {
+      console.log('[forgot] request:', { email });
+    }
     if (!email) return res.status(400).json({ message: 'Email required' });
     if (!emailRegex.test(email)) return res.status(202).json({ message: 'Si el correo existe, te enviaremos un enlace' });
     const user: any = await (UserDAO as any).findOne({ email });
+    if (isDev) {
+      console.log('[forgot] userFound:', Boolean(user));
+    }
     if (!user) return res.status(202).json({ message: 'Si el correo existe, te enviaremos un enlace' });
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 1000 * 60 * 60);
     await (UserDAO as any).update(user._id, { resetPasswordToken: token, resetPasswordExpires: expires });
-    try {
-      await sendPasswordResetEmail({ to: email, token });
-    } catch (mailErr: any) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Mail send error:', mailErr.message);
-      }
-    }
+    // Respond immediately, send email in background to avoid client timeouts
     res.status(202).json({ message: 'Si el correo existe, te enviaremos un enlace' });
+    if (isDev) {
+      console.log('[forgot] smtpConfigured:', isSmtpConfigured());
+      console.log('[forgot] queue email with token:', token.slice(0, 6) + '…');
+    }
+    Promise.resolve()
+      .then(() => sendPasswordResetEmail({ to: email, token }))
+      .then(() => { if (isDev) console.log('[forgot] email send completed'); })
+      .catch((mailErr: any) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('Mail send error:', mailErr?.message || mailErr);
+        }
+      });
     return;
   } catch (error: any) {
     if (process.env.NODE_ENV !== 'production') {

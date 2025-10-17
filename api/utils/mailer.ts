@@ -1,32 +1,6 @@
 import nodemailer from 'nodemailer';
-import net from 'net';
 
 const isDev = process.env.NODE_ENV !== 'production';
-
-/**
- * Test SMTP connectivity (for debugging)
- */
-export const testSmtpConnection = async (): Promise<{ success: boolean; message: string }> => {
-  return new Promise((resolve) => {
-    const host = process.env.SMTP_HOST || '';
-    const port = Number(process.env.SMTP_PORT || 587);
-    const socket = net.createConnection({ host, port, timeout: 5000 });
-
-    socket.on('connect', () => {
-      socket.destroy();
-      resolve({ success: true, message: `Connected to ${host}:${port}` });
-    });
-
-    socket.on('timeout', () => {
-      socket.destroy();
-      resolve({ success: false, message: `Timeout connecting to ${host}:${port}` });
-    });
-
-    socket.on('error', (err: any) => {
-      resolve({ success: false, message: `Error: ${err.message}` });
-    });
-  });
-};
 
 /**
  * Creates SMTP transport with configured credentials or JSON transport for testing
@@ -38,14 +12,7 @@ export const isSmtpConfigured = (): boolean => {
 const createTransport = () => {
   if (isSmtpConfigured()) {
     const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
-    const connectionTimeout = Number(process.env.SMTP_CONNECTION_TIMEOUT || 60000); // 60s for production
-    const greetingTimeout = Number(process.env.SMTP_GREETING_TIMEOUT || 10000); // 10s
-    const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT || 30000); // 30s
-    const usePool = String(process.env.SMTP_POOL || 'true').toLowerCase() === 'true';
-    const maxConnections = Number(process.env.SMTP_MAX_CONNECTIONS || 3);
-    const maxMessages = Number(process.env.SMTP_MAX_MESSAGES || 100);
-    const enableDebug = String(process.env.SMTP_DEBUG || 'false').toLowerCase() === 'true';
-
+    
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
@@ -54,23 +21,8 @@ const createTransport = () => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      // Prefer IPv4
-      family: 4,
-      pool: usePool,
-      maxConnections,
-      maxMessages,
-      connectionTimeout,
-      greetingTimeout,
-      socketTimeout,
-      tls: {
-        minVersion: 'TLSv1.2',
-        rejectUnauthorized: true,
-      },
-      logger: enableDebug,
-      debug: enableDebug,
-    } as any);
+    });
   }
-  // Fallback to JSON transport for testing/development
   return nodemailer.createTransport({ jsonTransport: true });
 };
 
@@ -88,13 +40,11 @@ const getAppUrl = () => process.env.APP_URL || 'http://localhost:5173';
 /**
  * Send password reset email with token
  */
-export async function sendPasswordResetEmail({ to, token }: { to: string, token: string }) {
+export async function sendPasswordResetEmail({ to, token }: { to: string; token: string }) {
   try {
-    const from = process.env.MAIL_FROM || 'noreply@lumiflix.com';
-    const baseUrl = getAppUrl().replace(/\/$/, '');
-    // React Router v6 format: /reset-password?token=xxx (not /#/reset-password)
+    const from = process.env.MAIL_FROM || 'noreply@example.com';
+    const baseUrl = getAppUrl().replace(/\/$/, ''); // Remove trailing slash if present
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
-    
     const subject = 'LumiFlix · Restablece tu contraseña';
     const text = `Hola,\n\nSolicitaste restablecer tu contraseña en LumiFlix.\n\nAbre este enlace (válido por 1 hora):\n${resetUrl}\n\nSi no fuiste tú, ignora este mensaje.\n\n— Equipo LumiFlix`;
     const html = `<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LumiFlix · Restablece tu contraseña</title><style>:root{--bg:#0b1228;--card:#0f172a;--text:#e5e7eb;--muted:#9ca3af;--brand:#6366f1;--brand2:#4338ca;--border:#23314e}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ubuntu,'Helvetica Neue',Arial,sans-serif;color:var(--text)}.wrap{max-width:640px;margin:0 auto;padding:24px}.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px}.brand{font-weight:800;font-size:22px;color:#a5b4fc;margin-bottom:8px}h1{margin:0 0 8px 0;font-size:22px}p{line-height:1.6;margin:0 0 12px 0;color:var(--muted)}.btn{display:inline-block;margin-top:8px;background:linear-gradient(135deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700}.link{word-break:break-all;color:#c7d2fe;font-size:12px}.footer{margin-top:16px;padding-top:12px;border-top:1px solid var(--border);color:var(--muted);font-size:12px}</style></head><body><div class="wrap"><div class="card"><div class="brand">LumiFlix</div><h1>Restablecer contraseña</h1><p>Has solicitado restablecer tu contraseña. Haz clic en el botón para continuar:</p><p><a class="btn" href="${resetUrl}" target="_blank" rel="noopener">Restablecer contraseña</a></p><p class="link">Si el botón no funciona, copia y pega este enlace en tu navegador:<br />${resetUrl}</p><p>Este enlace es válido por 1 hora y de un solo uso.</p><div class="footer">© ${new Date().getFullYear()} LumiFlix • Este correo se generó automáticamente</div></div></div></body></html>`;
@@ -119,5 +69,17 @@ export async function sendPasswordResetEmail({ to, token }: { to: string, token:
     throw error;
   }
 }
+
+export const testSmtpConnection = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    if (!isSmtpConfigured()) {
+      return { success: false, message: 'SMTP not configured' };
+    }
+    await transport.verify();
+    return { success: true, message: 'SMTP connection verified' };
+  } catch (error: any) {
+    return { success: false, message: `SMTP error: ${error.message}` };
+  }
+};
 
 

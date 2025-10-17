@@ -301,21 +301,17 @@ router.put('/users/me', (authMiddleware as any), async (req, res) => {
  */
 router.delete('/users/me', (authMiddleware as any), async (req, res) => {
   try {
-    const { password, confirmation } = req.body as any;
+    const { confirmation } = req.body as any;
     const userId = (req as any).userId;
-    if (!password || !confirmation) {
-      return res.status(400).json({ message: 'Password and confirmation are required' });
+    if (!confirmation) {
+      return res.status(400).json({ message: 'Confirmation is required' });
     }
-    if (confirmation !== 'ELIMINAR') {
+    if (String(confirmation).trim().toUpperCase() !== 'ELIMINAR') {
       return res.status(400).json({ message: 'Invalid confirmation text' });
     }
     const user: any = await (UserDAO as any).findOne({ _id: userId });
     if (!user) {
       return res.status(404).json({ message: 'Account not found' });
-    }
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Incorrect password' });
     }
     await (UserDAO as any).delete(userId);
     res.clearCookie('token', { ...cookieOptions, maxAge: undefined });

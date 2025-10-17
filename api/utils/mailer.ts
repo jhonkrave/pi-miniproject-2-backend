@@ -11,10 +11,12 @@ export const isSmtpConfigured = (): boolean => {
 
 const createTransport = () => {
   if (isSmtpConfigured()) {
+    const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
+    
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
-      secure: String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true',
+      secure,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -40,7 +42,7 @@ const getAppUrl = () => process.env.APP_URL || 'http://localhost:5173';
  */
 export async function sendPasswordResetEmail({ to, token }: { to: string; token: string }) {
   try {
-    const from = process.env.MAIL_FROM || 'no-reply@example.com';
+    const from = process.env.MAIL_FROM || 'noreply@example.com';
     const baseUrl = getAppUrl().replace(/\/$/, ''); // Remove trailing slash if present
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
     const subject = 'LumiFlix · Restablece tu contraseña';

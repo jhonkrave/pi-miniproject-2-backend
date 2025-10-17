@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './bootstrap/dns';
 import express from 'express';
 import cors from 'cors';
 import type { CorsOptions } from 'cors';

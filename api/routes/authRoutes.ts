@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import UserDAO from '../dao/UserDAO';
-import { sendPasswordResetEmail, isSmtpConfigured } from '../utils/mailer';
+import { sendPasswordResetEmail, isSmtpConfigured, testSmtpConnection } from '../utils/mailer';
 import authMiddleware from '../middleware/authMiddleware';
 
 const router = Router();
@@ -323,6 +323,18 @@ router.delete('/users/me', (authMiddleware as any), async (req, res) => {
     }
     res.status(500).json({ message: 'Internal server error' });
     return;
+  }
+});
+
+/**
+ * GET /api/auth/health
+ */
+router.get('/health', async (req, res) => {
+  try {
+    const isSmtp = await testSmtpConnection();
+    res.status(200).json({ message: 'SMTP health check', isSmtpConfigured: isSmtp });
+  } catch (error: any) {
+    res.status(503).json({ message: 'SMTP service unavailable', error: error.message });
   }
 });
 

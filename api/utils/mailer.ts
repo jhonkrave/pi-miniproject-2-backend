@@ -1,6 +1,32 @@
 import nodemailer from 'nodemailer';
+import net from 'net';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+/**
+ * Test SMTP connectivity (for debugging)
+ */
+export const testSmtpConnection = async (): Promise<{ success: boolean; message: string }> => {
+  return new Promise((resolve) => {
+    const host = process.env.SMTP_HOST || '';
+    const port = Number(process.env.SMTP_PORT || 587);
+    const socket = net.createConnection({ host, port, timeout: 5000 });
+
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve({ success: true, message: `Connected to ${host}:${port}` });
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve({ success: false, message: `Timeout connecting to ${host}:${port}` });
+    });
+
+    socket.on('error', (err: any) => {
+      resolve({ success: false, message: `Error: ${err.message}` });
+    });
+  });
+};
 
 /**
  * Creates SMTP transport with configured credentials or JSON transport for testing
@@ -12,7 +38,7 @@ export const isSmtpConfigured = (): boolean => {
 const createTransport = () => {
   if (isSmtpConfigured()) {
     const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
-    const connectionTimeout = Number(process.env.SMTP_CONNECTION_TIMEOUT || 20000); // 20s
+    const connectionTimeout = Number(process.env.SMTP_CONNECTION_TIMEOUT || 60000); // 60s for production
     const greetingTimeout = Number(process.env.SMTP_GREETING_TIMEOUT || 10000); // 10s
     const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT || 30000); // 30s
     const usePool = String(process.env.SMTP_POOL || 'true').toLowerCase() === 'true';
@@ -38,6 +64,7 @@ const createTransport = () => {
       socketTimeout,
       tls: {
         minVersion: 'TLSv1.2',
+        rejectUnauthorized: true,
       },
       logger: enableDebug,
       debug: enableDebug,

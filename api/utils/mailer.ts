@@ -66,10 +66,8 @@ export const testSmtpConnection = async (): Promise<{ success: boolean; message:
     if (!isSmtpConfigured()) {
       return { success: false, message: 'Resend API key not configured' };
     }
-    const resend = new Resend(resendApiKey);
-    // Simple test: try getting account info
-    const response = await (resend as any).apiRequests.getAccountInfo?.() || { success: true };
-    return { success: true, message: 'Resend API configured and reachable' };
+    // Just verify the key is set (actual connectivity will be tested on first send)
+    return { success: true, message: 'Resend API key configured' };
   } catch (error: any) {
     return { success: false, message: `Resend error: ${error.message}` };
   }

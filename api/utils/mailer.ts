@@ -11,15 +11,35 @@ export const isSmtpConfigured = (): boolean => {
 
 const createTransport = () => {
   if (isSmtpConfigured()) {
+    const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
+    const connectionTimeout = Number(process.env.SMTP_CONNECTION_TIMEOUT || 20000); // 20s
+    const greetingTimeout = Number(process.env.SMTP_GREETING_TIMEOUT || 10000); // 10s
+    const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT || 30000); // 30s
+    const usePool = String(process.env.SMTP_POOL || 'true').toLowerCase() === 'true';
+    const maxConnections = Number(process.env.SMTP_MAX_CONNECTIONS || 3);
+    const maxMessages = Number(process.env.SMTP_MAX_MESSAGES || 100);
+    const enableDebug = String(process.env.SMTP_DEBUG || 'false').toLowerCase() === 'true';
+
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
-      secure: String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true',
+      secure,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-    });
+      pool: usePool,
+      maxConnections,
+      maxMessages,
+      connectionTimeout,
+      greetingTimeout,
+      socketTimeout,
+      tls: {
+        minVersion: 'TLSv1.2',
+      },
+      logger: enableDebug,
+      debug: enableDebug,
+    } as any);
   }
   // Fallback to JSON transport for testing/development
   return nodemailer.createTransport({ jsonTransport: true });

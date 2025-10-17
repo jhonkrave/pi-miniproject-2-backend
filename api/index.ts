@@ -8,6 +8,11 @@ import authRoutes from './routes/authRoutes';
 
 const app = express();
 
+// Prefer IPv4 for outbound DNS to avoid SMTP IPv6 timeouts in some hosts
+// Can be overridden by env if needed
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED || '1';
+process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ''}`.trim();
+
 // Connect DB
 connectDB();
 

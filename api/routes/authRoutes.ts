@@ -1,3 +1,11 @@
+/**
+ * @fileoverview Authentication routes for LumiFlix API
+ * @description Handles user authentication, registration, password management,
+ * and user profile operations with JWT tokens and rate limiting
+ * @author Equipo 8
+ * @version 1.0.0
+ */
+
 import { Router, NextFunction, CookieOptions, RequestHandler } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -6,13 +14,34 @@ import UserDAO from '../dao/UserDAO';
 import { sendPasswordResetEmail, isSmtpConfigured, testSmtpConnection } from '../utils/mailer';
 import authMiddleware from '../middleware/authMiddleware';
 
+/**
+ * Express router instance for authentication routes
+ * @type {Router}
+ */
 const router = Router();
+
+/**
+ * Development environment flag
+ * @description Determines if the application is running in development mode
+ * @type {boolean}
+ */
 const isDev = process.env.NODE_ENV !== 'production';
 
+/**
+ * Generate JWT token for user authentication
+ * @description Creates a signed JWT token with user ID and 2-hour expiration
+ * @param {string} userId - User ID to include in token
+ * @returns {string} Signed JWT token
+ */
 const signToken = (userId: string): string => {
   return jwt.sign({ userId }, process.env.JWT_SECRET as string, { expiresIn: '2h' });
 };
 
+/**
+ * Cookie configuration options for JWT tokens
+ * @description Secure cookie settings for authentication tokens
+ * @type {CookieOptions}
+ */
 const cookieOptions: CookieOptions = {
   httpOnly: true,
   sameSite: process.env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
@@ -21,12 +50,42 @@ const cookieOptions: CookieOptions = {
   path: '/',
 };
 
+/**
+ * Email validation regex pattern
+ * @description Comprehensive email format validation regex
+ * @type {RegExp}
+ */
 const emailRegex = /^(?:[a-zA-Z0-9_'^&+\-`{}~!#$%*?\/|=]+(?:\.[a-zA-Z0-9_'^&+\-`{}~!#$%*?\/|=]+)*)@(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+
+/**
+ * Password validation regex for signup
+ * @description Requires at least 8 characters with uppercase, lowercase, digit, and special character
+ * @type {RegExp}
+ */
 const passwordRegexSignup = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+/**
+ * Password validation regex for reset
+ * @description Same requirements as signup password validation
+ * @type {RegExp}
+ */
 const passwordRegexReset = passwordRegexSignup;
 
-// Simple in-memory rate limiter (per IP) for login
+/**
+ * In-memory rate limiter storage for login attempts
+ * @description Maps IP addresses to their request count and window start time
+ * @type {Map<string, {count: number, windowStart: number}>}
+ */
 const loginRequestsByIp = new Map<string, { count: number; windowStart: number }>();
+
+/**
+ * Rate limiting middleware for login attempts
+ * @description Prevents brute force attacks by limiting login attempts per IP
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * @returns {void}
+ */
 const loginRateLimit: RequestHandler = (req, res, next: NextFunction) => {
   const now = Date.now();
   const windowMs = 15 * 60 * 1000; // 15 minutes
@@ -47,7 +106,19 @@ const loginRateLimit: RequestHandler = (req, res, next: NextFunction) => {
 }
 
 /**
- * POST /api/auth/signup
+ * User registration endpoint
+ * @description Creates a new user account with email, password, and profile information
+ * @route POST /api/auth/signup
+ * @param {Object} req.body - Request body containing user data
+ * @param {string} req.body.email - User email address
+ * @param {string} req.body.password - User password (must meet complexity requirements)
+ * @param {string} req.body.firstname - User first name
+ * @param {string} req.body.lastname - User last name
+ * @param {number} req.body.age - User age (must be at least 13)
+ * @returns {Object} Created user object without password
+ * @throws {400} Missing required fields or validation errors
+ * @throws {409} Email already exists
+ * @throws {500} Internal server error
  */
 router.post('/signup', async (req, res) => {
   try {
@@ -83,7 +154,18 @@ router.post('/signup', async (req, res) => {
 });
 
 /**
- * POST /api/auth/login
+ * User authentication endpoint
+ * @description Authenticates user credentials and returns JWT token
+ * @route POST /api/auth/login
+ * @param {Object} req.body - Request body containing credentials
+ * @param {string} req.body.email - User email address
+ * @param {string} req.body.password - User password
+ * @returns {Object} User object and sets authentication cookie
+ * @throws {400} Missing email or password
+ * @throws {401} Invalid credentials
+ * @throws {423} Account locked due to too many failed attempts
+ * @throws {429} Too many login attempts from IP
+ * @throws {500} Internal server error
  */
 router.post('/login', loginRateLimit, async (req, res) => {
   try {
@@ -124,7 +206,10 @@ router.post('/login', loginRateLimit, async (req, res) => {
 });
 
 /**
- * POST /api/auth/logout
+ * User logout endpoint
+ * @description Clears authentication cookie and logs out user
+ * @route POST /api/auth/logout
+ * @returns {Object} Success message
  */
 router.post('/logout', (req, res) => {
   res.clearCookie('token', { ...cookieOptions, maxAge: undefined });
@@ -133,7 +218,14 @@ router.post('/logout', (req, res) => {
 });
 
 /**
- * POST /api/auth/password/forgot
+ * Password reset request endpoint
+ * @description Initiates password reset process by sending reset email
+ * @route POST /api/auth/password/forgot
+ * @param {Object} req.body - Request body containing email
+ * @param {string} req.body.email - User email address for password reset
+ * @returns {Object} Success message (always returns same message for security)
+ * @throws {400} Email required
+ * @throws {500} Internal server error
  */
 router.post('/password/forgot', async (req, res) => {
   try {
@@ -177,7 +269,15 @@ router.post('/password/forgot', async (req, res) => {
 });
 
 /**
- * POST /api/auth/password/reset
+ * Password reset confirmation endpoint
+ * @description Resets user password using valid reset token
+ * @route POST /api/auth/password/reset
+ * @param {Object} req.body - Request body containing reset data
+ * @param {string} req.body.token - Password reset token from email
+ * @param {string} req.body.newPassword - New password (must meet complexity requirements)
+ * @returns {Object} Success message
+ * @throws {400} Missing token or password, invalid token, or password validation failed
+ * @throws {500} Internal server error
  */
 router.post('/password/reset', async (req, res) => {
   try {
@@ -200,7 +300,14 @@ router.post('/password/reset', async (req, res) => {
 });
 
 /**
- * GET /api/auth/password/verify?token=XYZ
+ * Password reset token verification endpoint
+ * @description Verifies if a password reset token is valid and not expired
+ * @route GET /api/auth/password/verify
+ * @param {Object} req.query - Query parameters
+ * @param {string} req.query.token - Password reset token to verify
+ * @returns {Object} Token validation result
+ * @throws {400} Token required
+ * @throws {500} Internal server error
  */
 router.get('/password/verify', async (req, res) => {
   try {
@@ -220,7 +327,14 @@ router.get('/password/verify', async (req, res) => {
 });
 
 /**
- * GET /api/auth/users/me
+ * Get current user profile endpoint
+ * @description Retrieves the authenticated user's profile information
+ * @route GET /api/auth/users/me
+ * @param {Object} req - Express request object with authenticated user ID
+ * @returns {Object} User profile information
+ * @throws {401} Unauthorized (handled by authMiddleware)
+ * @throws {404} User not found
+ * @throws {500} Internal server error
  */
 router.get('/users/me', authMiddleware as any, async (req, res) => {
   try {
@@ -245,7 +359,20 @@ router.get('/users/me', authMiddleware as any, async (req, res) => {
 });
 
 /**
- * PUT /api/auth/users/me
+ * Update current user profile endpoint
+ * @description Updates the authenticated user's profile information
+ * @route PUT /api/auth/users/me
+ * @param {Object} req.body - Request body containing updated user data
+ * @param {string} req.body.email - Updated email address
+ * @param {string} req.body.firstname - Updated first name
+ * @param {string} req.body.lastname - Updated last name
+ * @param {number} req.body.age - Updated age (must be at least 13)
+ * @returns {Object} Updated user profile information
+ * @throws {400} Missing required fields, invalid email format, or age validation failed
+ * @throws {401} Unauthorized (handled by authMiddleware)
+ * @throws {404} User not found
+ * @throws {409} Email already in use by another user
+ * @throws {500} Internal server error
  */
 router.put('/users/me', (authMiddleware as any), async (req, res) => {
   try {
@@ -297,7 +424,16 @@ router.put('/users/me', (authMiddleware as any), async (req, res) => {
 });
 
 /**
- * DELETE /api/auth/users/me
+ * Delete current user account endpoint
+ * @description Permanently deletes the authenticated user's account
+ * @route DELETE /api/auth/users/me
+ * @param {Object} req.body - Request body containing confirmation
+ * @param {string} req.body.confirmation - Confirmation text "ELIMINAR" to confirm deletion
+ * @returns {void} No content on successful deletion
+ * @throws {400} Missing confirmation or invalid confirmation text
+ * @throws {401} Unauthorized (handled by authMiddleware)
+ * @throws {404} Account not found
+ * @throws {500} Internal server error
  */
 router.delete('/users/me', (authMiddleware as any), async (req, res) => {
   try {
@@ -327,7 +463,11 @@ router.delete('/users/me', (authMiddleware as any), async (req, res) => {
 });
 
 /**
- * GET /api/auth/health
+ * Authentication service health check endpoint
+ * @description Checks the health of authentication services including SMTP
+ * @route GET /api/auth/health
+ * @returns {Object} Health status of authentication services
+ * @throws {503} Service unavailable if SMTP is not working
  */
 router.get('/health', async (req, res) => {
   try {
@@ -338,6 +478,11 @@ router.get('/health', async (req, res) => {
   }
 });
 
+/**
+ * Export authentication router
+ * @description Exports the configured Express router with all authentication routes
+ * @type {Router}
+ */
 export default router;
 
 

@@ -1,28 +1,58 @@
+/**
+ * @fileoverview Email utility module using SendGrid
+ * @description Handles email sending functionality including password reset emails
+ * and SMTP connection testing for the LumiFlix application
+ * @author Equipo 8
+ * @version 1.0.0
+ */
+
 import sgMail from '@sendgrid/mail';
 
+/**
+ * Development environment flag
+ * @description Determines if the application is running in development mode
+ * @type {boolean}
+ */
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Initialize SendGrid
+/**
+ * Initialize SendGrid with API key
+ * @description Sets the SendGrid API key from environment variables
+ */
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
 /**
  * Check if SendGrid is configured
+ * @description Verifies if the SendGrid API key is properly set in environment variables
+ * @returns {boolean} True if SendGrid API key is configured, false otherwise
  */
 export const isSmtpConfigured = (): boolean => {
   return Boolean(process.env.SENDGRID_API_KEY);
 };
 
+/**
+ * Development logging for SendGrid initialization
+ * @description Logs the transport initialization status in development mode
+ */
 if (isDev) {
   console.log('[mailer] transport initialized:', isSmtpConfigured() ? 'SendGrid API' : 'Not configured');
 }
 
 /**
  * Get the application URL for email links
+ * @description Retrieves the base application URL from environment variables or defaults to localhost
+ * @returns {string} The application base URL
  */
 const getAppUrl = () => process.env.APP_URL || 'http://localhost:5173';
 
 /**
  * Send password reset email with token
+ * @description Sends a password reset email to the specified recipient with a reset token
+ * @param {Object} params - Email parameters
+ * @param {string} params.to - Recipient email address
+ * @param {string} params.token - Password reset token
+ * @returns {Promise<any>} SendGrid response object
+ * @throws {Error} When email sending fails
  */
 export async function sendPasswordResetEmail({ to, token }: { to: string; token: string }) {
   try {
@@ -64,6 +94,11 @@ export async function sendPasswordResetEmail({ to, token }: { to: string; token:
   }
 }
 
+/**
+ * Test SMTP connection
+ * @description Tests the SendGrid SMTP connection by verifying API key configuration
+ * @returns {Promise<{success: boolean, message: string}>} Test result object with success status and message
+ */
 export const testSmtpConnection = async (): Promise<{ success: boolean; message: string }> => {
   try {
     if (!isSmtpConfigured()) {

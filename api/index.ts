@@ -14,6 +14,7 @@ import type { CorsOptions } from 'cors';
 import cookieParser from 'cookie-parser';
 import { connectDB } from './config/database';
 import authRoutes from './routes/authRoutes';
+import movieRoutes from './routes/movieRoutes';
 
 /**
  * Main Express application instance
@@ -101,7 +102,11 @@ app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
  * @description Mounts authentication routes under /api/auth prefix
  */
 app.use('/api/auth', authRoutes);
-
+/**
+ * Movie routes
+ * @description Mounts movie routes under /api/movie prefix
+ */
+app.use('/api/movie', movieRoutes);
 /**
  * Server initialization
  * @description Only starts the server if this file is run directly

@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "allowJs": false,
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "types": ["node", "express"]
+  },
+  "include": ["api/**/*.ts", "api/types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}
+
+

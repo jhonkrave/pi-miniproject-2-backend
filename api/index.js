@@ -30,6 +30,9 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 const authRoutes = require("./routes/authRoutes");
 app.use("/api/auth", authRoutes);
 
+// Agrega estas líneas para las rutas de películas
+const movieRoutes = require('./routes/movieRoutes');
+app.use('/api/movies', movieRoutes);
 
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;

@@ -360,15 +360,16 @@ router.get('/users/me', authMiddleware as any, async (req, res) => {
 
 /**
  * Update current user profile endpoint
- * @description Updates the authenticated user's profile information
+ * @description Updates the authenticated user's profile information including password
  * @route PUT /api/auth/users/me
  * @param {Object} req.body - Request body containing updated user data
  * @param {string} req.body.email - Updated email address
  * @param {string} req.body.firstname - Updated first name
  * @param {string} req.body.lastname - Updated last name
  * @param {number} req.body.age - Updated age (must be at least 13)
+ * @param {string} req.body.password - Updated password (optional, must meet complexity requirements)
  * @returns {Object} Updated user profile information
- * @throws {400} Missing required fields, invalid email format, or age validation failed
+ * @throws {400} Missing required fields, invalid email format, age validation failed, or password validation failed
  * @throws {401} Unauthorized (handled by authMiddleware)
  * @throws {404} User not found
  * @throws {409} Email already in use by another user
@@ -380,6 +381,7 @@ router.put('/users/me', (authMiddleware as any), async (req, res) => {
     const firstname = (req.body as any).firstname || (req.body as any).firstName;
     const lastname = (req.body as any).lastname || (req.body as any).lastName;
     const age = (req.body as any).age;
+    const password = (req.body as any).password;
     const userId = (req as any).userId;
 
     if (!firstname || !lastname || age === undefined || !email) {
@@ -392,11 +394,27 @@ router.put('/users/me', (authMiddleware as any), async (req, res) => {
     if (!Number.isInteger(numericAge) || numericAge < 13) {
       return res.status(400).json({ message: 'Age must be an integer and at least 13' });
     }
+    
+    // Validate password if provided
+    if (password && !passwordRegexSignup.test(password)) {
+      return res.status(400).json({ message: 'Password does not meet complexity requirements' });
+    }
+    
     const existingUser = await (UserDAO as any).findOne({ email, _id: { $ne: userId } });
     if (existingUser) {
       return res.status(409).json({ message: 'Email already in use' });
     }
-    const updatedUser = await (UserDAO as any).update(userId, { firstname, lastname, age: numericAge, email });
+    
+    // Prepare update object
+    const updateData: any = { firstname, lastname, age: numericAge, email };
+    
+    // Add password to update if provided
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    }
+    
+    const updatedUser = await (UserDAO as any).update(userId, updateData);
     const userResponse = {
       id: updatedUser._id,
       firstName: updatedUser.firstname,

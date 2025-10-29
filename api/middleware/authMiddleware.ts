@@ -58,10 +58,13 @@ export default function authMiddleware(req: Request, res: Response, next: NextFu
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string };
     
     /**
-     * Add user ID to request object
-     * @description Makes user ID available to subsequent middleware and route handlers
+     * Add user object to request object for compatibility with comment routes
+     * @description Makes user data available to subsequent middleware and route handlers
      */
-    (req as any).userId = decoded.userId;
+    (req as any).user = {
+      _id: decoded.userId,
+      // Agrega otros campos si están disponibles en el token
+    };
     
     /**
      * Continue to next middleware/route handler

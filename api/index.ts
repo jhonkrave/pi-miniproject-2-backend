@@ -14,6 +14,7 @@ import type { CorsOptions } from 'cors';
 import cookieParser from 'cookie-parser';
 import { connectDB } from './config/database';
 import authRoutes from './routes/authRoutes';
+import commentRoutes from './routes/CommentRoutes'; // ← NUEVA IMPORTACIÓN
 
 /**
  * Main Express application instance
@@ -99,8 +100,10 @@ app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
 /**
  * API routes
  * @description Mounts authentication routes under /api/auth prefix
+ * @description Mounts comment routes under /api/comments prefix
  */
 app.use('/api/auth', authRoutes);
+app.use('/api/comments', commentRoutes); // ← NUEVA RUTA
 
 /**
  * Server initialization
@@ -132,5 +135,3 @@ if (require.main === module) {
  * @type {express.Application}
  */
 export default app;
-
-

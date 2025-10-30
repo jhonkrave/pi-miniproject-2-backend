@@ -15,6 +15,7 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from './config/database';
 import authRoutes from './routes/authRoutes';
 import commentRoutes from './routes/CommentRoutes'; // ← NUEVA IMPORTACIÓN
+import movieRoutes from './routes/movieRoutes';
 
 /**
  * Main Express application instance
@@ -103,8 +104,13 @@ app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
  * @description Mounts comment routes under /api/comments prefix
  */
 app.use('/api/auth', authRoutes);
-app.use('/api/comments', commentRoutes); // ← NUEVA RUTA
+app.use('/api/comments', commentRoutes);
 
+/**
+ * Movie routes
+ * @description Mounts movie routes under /api/movie prefix
+ */
+app.use('/api/movie', movieRoutes);
 /**
  * Server initialization
  * @description Only starts the server if this file is run directly

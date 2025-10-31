@@ -75,7 +75,7 @@ class CommentDAO extends GlobalDAO<IComment> {
         try {
             const skip = (page - 1) * limit;
             const comments = await Comment.find({ userId })
-                .populate('movieId', 'title poster_path')
+                .populate('userId', 'username email')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)

@@ -267,7 +267,14 @@ router.get('/watch/:id',authMiddleware as any, async (req, res) => {
         // 1. Each different movie gets a different video
         // 2. The same movie always gets the same video (consistency)
         const selectedIndex = Number(movieId) % poolVideos.length;
-        const selectedVideo = poolVideos[selectedIndex].videoData;
+        const selectedVideo = poolVideos[selectedIndex]?.videoData;
+        
+        if (!selectedVideo) {
+            res.status(503).json({ 
+                message: 'Video service temporarily unavailable. Please try again in a moment.' 
+            });
+            return;
+        }
 
         res.json({
             movie,

@@ -40,6 +40,28 @@ process.env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ''}`.trim();
 connectDB();
 
 /**
+ * Initialize Pexels video pool after database connection
+ * @description Loads video pool in background to avoid rate limiting on first requests
+ */
+async function initializeVideoPool() {
+    try {
+        // Wait a bit for database to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const { initializeVideoPool } = await import('./services/pexelsVideoPool');
+        await initializeVideoPool();
+    } catch (error) {
+        console.error('Error initializing video pool on startup:', error);
+        // Non-critical, continue server startup
+    }
+}
+
+// Initialize pool in background (non-blocking)
+if (require.main === module) {
+    initializeVideoPool();
+}
+
+/**
  * Proxy trust configuration for secure cookies
  * @description Required for secure cookies behind proxies like Render
  */

@@ -227,40 +227,51 @@ router.get('/movies/:id', async (req, res) => {
 
 /**
  * Watch endpoint: Given a TMDB movie id, return a Pexels video to play
- * Strategy: resolve TMDB title, search in Pexels for a likely trailer/cinematic clip
+ * Strategy: Select video from database pool deterministically using TMDB ID
+ * Videos are stored in database to avoid Pexels API rate limiting
  * @route GET /api/movie/watch/:id
  */
 router.get('/watch/:id',authMiddleware as any, async (req, res) => {
     try {
         const language = (req.query.language as string) || undefined;
         const movie = await getMovieDetails(req.params.id, language);
-        const baseQuery = movie.title;
-        // Try multiple queries for better hit rate
-        const queries = [
-            `${baseQuery} official trailer`,
-            `${baseQuery} trailer`,
-            `${baseQuery} cinematic`,
-            `${baseQuery}`,
-            `movie trailer`
-        ];
+        const movieId = movie.id; // TMDB ID used for deterministic selection
 
-        let result: any | null = null;
-        for (const q of queries) {
-            const r = await client.videos.search({ query: q, per_page: 10 });
-            if ((r as any)?.videos?.length) {
-                result = (r as any).videos[0];
-                break;
+        // Import video pool service
+        const { getAllVideosFromPool, hasMinimumPoolSize, initializeVideoPool } = await import('../services/pexelsVideoPool');
+        
+        // Get all videos from database pool first
+        let poolVideos = await getAllVideosFromPool();
+
+        // Only initialize if pool is empty or very small (avoid unnecessary initializations)
+        const MIN_VIDEOS_NEEDED = 50; // Minimum videos needed to serve requests
+        if (poolVideos.length === 0) {
+            // Pool is completely empty - initialize synchronously
+            await initializeVideoPool();
+            poolVideos = await getAllVideosFromPool();
+            
+            if (poolVideos.length === 0) {
+                res.status(503).json({ 
+                    message: 'Video service temporarily unavailable. Please try again in a moment.' 
+                });
+                return;
             }
+        } else if (poolVideos.length < MIN_VIDEOS_NEEDED) {
+            // Pool exists but is below minimum - initialize in background (non-blocking)
+            // Multiple calls to initializeVideoPool() will return the same promise (singleton pattern)
+            initializeVideoPool().catch(err => console.error('Background pool initialization failed:', err));
         }
 
-        if (!result) {
-            res.status(404).json({ message: 'No playable video found in Pexels for this movie' });
-            return;
-        }
+        // Select video deterministically using TMDB ID as index
+        // This ensures: 
+        // 1. Each different movie gets a different video
+        // 2. The same movie always gets the same video (consistency)
+        const selectedIndex = Number(movieId) % poolVideos.length;
+        const selectedVideo = poolVideos[selectedIndex].videoData;
 
         res.json({
             movie,
-            video: result,
+            video: selectedVideo,
             provider: 'pexels'
         });
         return;

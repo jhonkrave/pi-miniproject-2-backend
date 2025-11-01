@@ -49,7 +49,7 @@ export async function hasMinimumPoolSize(): Promise<boolean> {
  */
 export async function getAllVideosFromPool(): Promise<IPexelsVideo[]> {
     try {
-        return await PexelsVideo.find({}).exec();
+        return await PexelsVideo.find({}).exec() as IPexelsVideo[];
     } catch (error) {
         console.error('Error fetching videos from pool:', error);
         return [];

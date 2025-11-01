@@ -12,14 +12,14 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
  * @interface IComment
  * @extends {Document}
  * @property {Types.ObjectId} userId - User ID who created the comment
- * @property {Types.ObjectId} movieId - Movie ID the comment belongs to
+ * @property {string} movieId - Movie ID the comment belongs to (TMDB ID as string)
  * @property {string} content - Comment content text
  * @property {Date} createdAt - Document creation timestamp
  * @property {Date} updatedAt - Document last update timestamp
  */
 export interface IComment extends Document {
   userId: Types.ObjectId;
-  movieId: Types.ObjectId;
+  movieId: string; // Using string to store TMDB movie ID
   content: string;
   createdAt: Date;
   updatedAt: Date;
@@ -43,11 +43,11 @@ const commentSchema = new Schema<IComment>({
   },
   
   /**
-   * Movie ID reference
+   * Movie ID reference (TMDB ID stored as string)
    * @type {Object}
    */
   movieId: { 
-    type: Schema.Types.ObjectId, 
+    type: String, 
     required: true, 
     index: true 
   },

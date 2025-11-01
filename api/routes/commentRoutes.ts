@@ -119,6 +119,15 @@ router.post('/', async (req, res) => {
       return;
     }
 
+    // Validate that content is not empty after trimming (US-9 requirement)
+    if (typeof content === 'string' && content.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Comment content cannot be empty',
+      });
+      return;
+    }
+
     if (content.length > 2000) {
       res.status(400).json({
         success: false,

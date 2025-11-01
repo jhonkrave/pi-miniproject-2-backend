@@ -16,6 +16,8 @@ import { connectDB } from './config/database';
 import authRoutes from './routes/authRoutes';
 import movieRoutes from './routes/movieRoutes';
 import commentRoutes from './routes/commentRoutes';
+import ratingRoutes from './routes/ratingRoutes';
+import subtitleRoutes from './routes/subtitleRoutes';
 
 /**
  * Main Express application instance
@@ -114,6 +116,15 @@ app.use('/api/movie', movieRoutes);
  */
 app.use('/api/comments', commentRoutes);
 /**
+ * Rating routes
+ * @description Mounts rating routes under /api/ratings prefix
+ */
+app.use('/api/ratings', ratingRoutes);
+/**
+ * Subtitle routes
+ * @description Mounts subtitle routes under /api/subtitles prefix
+ */
+app.use('/api/subtitles', subtitleRoutes);
 /**
  * Server initialization
  * @description Only starts the server if this file is run directly
